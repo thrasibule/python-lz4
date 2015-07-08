@@ -5,11 +5,51 @@ ffi.set_source("_lz4", """
 #define LZ4F_DISABLE_OBSOLETE_ENUMS
 #include <lz4frame.h>""", libraries=['lz4'])
 
-ffi.cdef("typedef ... LZ4F_preferences_t;")
+ffi.cdef("""
+typedef enum {
+    LZ4F_default=0,
+    LZ4F_max64KB=4,
+    LZ4F_max256KB=5,
+    LZ4F_max1MB=6,
+    LZ4F_max4MB=7
+} LZ4F_blockSizeID_t;
+
+typedef enum {
+    LZ4F_blockLinked=0,
+    LZ4F_blockIndependent
+} LZ4F_blockMode_t;
+
+typedef enum {
+    LZ4F_noContentChecksum=0,
+    LZ4F_contentChecksumEnabled
+} LZ4F_contentChecksum_t;
+
+typedef enum {
+    LZ4F_frame=0,
+    LZ4F_skippableFrame
+} LZ4F_frameType_t;
+
+typedef struct {
+  LZ4F_blockSizeID_t     blockSizeID;           /* max64KB, max256KB, max1MB, max4MB ; 0 == default */
+  LZ4F_blockMode_t       blockMode;             /* blockLinked, blockIndependent ; 0 == default */
+  LZ4F_contentChecksum_t contentChecksumFlag;   /* noContentChecksum, contentChecksumEnabled ; 0 == default  */
+  LZ4F_frameType_t       frameType;             /* LZ4F_frame, skippableFrame ; 0 == default */
+  unsigned long long     contentSize;           /* Size of uncompressed (original) content ; 0 == unknown */
+  unsigned               reserved[2];           /* must be zero for forward compatibility */
+} LZ4F_frameInfo_t;
+
+typedef struct {
+LZ4F_frameInfo_t frameInfo;
+int compressionLevel;
+unsigned autoFlush;
+unsigned reserved[4];
+} LZ4F_preferences_t;
+""")
+
 ffi.cdef("""
 typedef size_t LZ4F_errorCode_t;
 unsigned LZ4F_isError(LZ4F_errorCode_t code);
-unsigned LZ4F_isError(LZ4F_errorCode_t code);
+const char* LZ4F_getErrorName(LZ4F_errorCode_t code);
 """)
 
 ffi.cdef("size_t LZ4F_compressFrameBound(size_t srcSize, const LZ4F_preferences_t* preferencesPtr);")
