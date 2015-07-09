@@ -77,5 +77,31 @@ size_t LZ4F_compressUpdate(LZ4F_compressionContext_t cctx, void* dstBuffer, size
 size_t LZ4F_flush(LZ4F_compressionContext_t cctx, void* dstBuffer, size_t dstMaxSize, const LZ4F_compressOptions_t* cOptPtr);
 size_t LZ4F_compressEnd(LZ4F_compressionContext_t cctx, void* dstBuffer, size_t dstMaxSize, const LZ4F_compressOptions_t* cOptPtr);""")
 
+ffi.cdef("""
+typedef struct LZ4F_dctx_s* LZ4F_decompressionContext_t;
+
+typedef struct {
+  unsigned stableDst;       /* guarantee that decompressed data will still be there on next function calls (avoid storage into tmp buffers) */
+  unsigned reserved[3];
+} LZ4F_decompressOptions_t;""")
+
+# Resource management
+ffi.cdef("""
+LZ4F_errorCode_t LZ4F_createDecompressionContext(LZ4F_decompressionContext_t* dctxPtr, unsigned version);
+LZ4F_errorCode_t LZ4F_freeDecompressionContext(LZ4F_decompressionContext_t dctx);
+""")
+
+ffi.cdef("""
+size_t LZ4F_getFrameInfo(LZ4F_decompressionContext_t dctx,
+                         LZ4F_frameInfo_t* frameInfoPtr,
+                         const void* srcBuffer, size_t* srcSizePtr);
+
+size_t LZ4F_decompress(LZ4F_decompressionContext_t dctx,
+                       void* dstBuffer, size_t* dstSizePtr,
+                       const void* srcBuffer, size_t* srcSizePtr,
+                       const LZ4F_decompressOptions_t* dOptPtr);
+""")
+
+
 if __name__ == "__main__":
     ffi.compile()
