@@ -2,9 +2,7 @@ from lz4f import (createCompressionContext, compressBound,
                   compressBegin, compressUpdate, compressEnd, freeCompressionContext)
 from _lz4 import ffi, lib
 
-BUF_SIZE = 16 * 1024
-LZ4_HEADER_SIZE = 19
-LZ4_FOOTER_SIZE = 4
+SRC_SIZE = 16 * 1024
 
 ctx = createCompressionContext()
 lz4_preferences = ffi.new("LZ4F_preferences_t*",
@@ -18,45 +16,35 @@ lz4_preferences = ffi.new("LZ4F_preferences_t*",
                            'autoFlush': 0,
                            'reserved': [0, 0, 0, 0]})
 
-src = ffi.new("char[]", BUF_SIZE)
+src = ffi.new("char[]", SRC_SIZE)
 src_buf = ffi.buffer(src)
-frame_size = compressBound(BUF_SIZE, lz4_preferences)
-dst_size = frame_size + LZ4_HEADER_SIZE + LZ4_FOOTER_SIZE
+dst_size = compressBound(SRC_SIZE, lz4_preferences)
+
 dst = ffi.new("char[]", dst_size)
 dst_buf = ffi.buffer(dst)
-n = offset = count_out = compressBegin(ctx[0], dst, dst_size, lz4_preferences)
 
 infile = open("test.tar", "rb")
 outfile = open("test.tar.lz4", "wb")
-count_in = 0
-offset = 0
+filesize = 0
+compressedfilesize = 0
 
-while True:
-    k = infile.raw.readinto(src_buf)
-    if k == 0:
-        break
-    count_in += k
-    n =  compressUpdate(ctx[0], dst + offset, dst_size - offset, src, k)
+read_size = infile.raw.readinto(src_buf)
+filesize += read_size
 
-    offset += n
-    count_out +=n
+header_size = compressBegin(ctx[0], dst, dst_size, lz4_preferences)
+size_check = outfile.write(dst_buf[:header_size])
+compressedfilesize += header_size
 
-    if dst_size - offset < frame_size + LZ4_FOOTER_SIZE:
-        #print("Writing {0} bytes".format(offset))
-        k = outfile.raw.write(dst_buf[:offset])
-        if k < offset:
-            print("Short write")
+while read_size > 0:
+    out_size =  compressUpdate(ctx[0], dst, dst_size, src, read_size)
+    size_check = outfile.write(dst_buf[:out_size])
+    compressedfilesize += out_size
+    read_size = infile.raw.readinto(src_buf)
+    filesize += read_size
 
-        offset = 0
-
-n = compressEnd(ctx[0], dst + offset, dst_size - offset)
-
-offset += n
-count_out += n
-print("Writing {0} bytes".format(offset))
-k = outfile.raw.write(dst_buf[:offset])
-if k < offset:
-    print("Short write")
+footer_size = compressEnd(ctx[0], dst, dst_size)
+size_check = outfile.write(dst_buf[:footer_size])
+compressedfilesize += footer_size
 
 freeCompressionContext(ctx[0])
 infile.close()
